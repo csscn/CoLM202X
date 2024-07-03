@@ -1,0 +1,70 @@
+&nl_colm
+
+!Author: Hongbin Liang
+    DEF_CASE_NAME = "SingleSiteTest"
+
+!single point simulation
+    SITE_fsrfdata = "/stu01/chenss22/ForDS/data/DEM/heihe/test_srfdata.nc"
+    USE_SITE_pctpfts          = .false.
+    USE_SITE_pctcrop          = .false.
+    USE_SITE_htop             = .false.
+    USE_SITE_LAI              = .false.
+    USE_SITE_lakedepth        = .false.
+    USE_SITE_soilreflectance  = .false.
+    USE_SITE_soilparameters   = .false.
+    USE_SITE_dbedrock         = .false.
+    USE_SITE_topography       = .false.
+    USE_SITE_topostd          = .false.
+    USE_SITE_HistWriteBack    = .false.
+    USE_SITE_ForcingReadAhead = .true.
+    USE_SITE_urban_paras      = .false.
+    USE_SITE_thermal_paras    = .false.
+    USE_SITE_urban_LAI        = .false.
+
+!simulation time
+    DEF_simulation_time%greenwich   = .false.
+    DEF_simulation_time%start_year  = 2018
+    DEF_simulation_time%start_month = 1
+    DEF_simulation_time%start_day   = 1
+    DEF_simulation_time%start_sec   = 0
+    DEF_simulation_time%end_year    = 2018
+    DEF_simulation_time%end_month   = 1
+    DEF_simulation_time%end_day     = 1
+    DEF_simulation_time%end_sec     = 86400
+    DEF_simulation_time%spinup_year = 2004
+    DEF_simulation_time%spinup_month= 1
+    DEF_simulation_time%spinup_day  = 1
+    DEF_simulation_time%spinup_sec  = 0
+    DEF_simulation_time%spinup_repeat = 0
+    DEF_simulation_time%timestep    = 3600.
+
+!used for downscaling
+    DEF_USE_Forcing_Downscaling = .true.
+!model data
+    DEF_dir_rawdata = "/stu01/chenss22/colm/data/CoLMrawdata/"
+    DEF_dir_runtime = "/tera07/CoLMruntime/"
+    DEF_dir_output = "/stu01/chenss22/colm/cases/"
+
+!LAI change and Land cover year setting
+    DEF_LC_YEAR = 2005
+    DEF_LAI_MONTHLY = .true.
+    DEF_LAI_CHANGE_YEARLY = .true.
+
+!forcing
+    DEF_forcing_namelist = "./forcing/ERA5.nml"
+
+!history and restart
+    DEF_HIST_lon_res = 1.0
+    DEF_HIST_lat_res = 1.0
+    DEF_WRST_FREQ = "YEARLY"
+    DEF_HIST_FREQ = "HOURLY"
+    DEF_HIST_groupby = "YEAR"
+    DEF_HIST_mode = "one"
+    DEF_REST_CompressLevel = 1
+    DEF_HIST_CompressLevel = 1
+
+!history
+    !DEF_HIST_vars_namelist = ""
+    DEF_HIST_vars_out_default = .true.
+/
+

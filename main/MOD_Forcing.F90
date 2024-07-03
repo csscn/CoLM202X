@@ -412,6 +412,9 @@ CONTAINS
    logical  :: has_u,has_v
    real solar, frl, prcp, tm, us, vs, pres, qm
    real(r8) :: pco2m                        
+   real(r8), dimension(12,numpatch) :: spaceship
+   integer target_server, ierr
+   real(r8) :: prec_local
 
    IF (p_is_io) THEN
    !------------------------------------------------------------
@@ -703,7 +706,6 @@ CONTAINS
          CALL mg2p_forc%grid2part (forc_xy_vs,      forc_vs_grid   )
 
          calday = calendarday(idate) 
-         write(*,*) 'calday', calday
 
          IF (p_is_worker) THEN
             DO np = 1, numpatch ! patches
@@ -771,12 +773,33 @@ CONTAINS
                      forc_frl_part(np)%val(ipart),   forc_swrad_part(np)%val(ipart),  &
                      forc_us_part(np)%val(ipart),    forc_vs_part(np)%val(ipart))
                ENDDO
+
+#ifdef USESplitAI
+               ! spaceship(1,1) = mg2p_forc%npart(np)
+               ! spaceship(1,2) = p_iam_glb
+               ! spaceship(1,3) = forc_topo(np)
+               ! spaceship(1,4) = 123456789
+               ! spaceship(2,1:mg2p_forc%npart(np))=forc_t_part(np)%val
+               ! spaceship(3,1:mg2p_forc%npart(np))=forc_pbot_part(np)%val
+               ! spaceship(4,1:mg2p_forc%npart(np))=forc_q_part(np)%val
+               ! spaceship(5,1:mg2p_forc%npart(np))=forc_frl_part(np)%val
+               ! spaceship(6,1:mg2p_forc%npart(np))=forc_swrad_part(np)%val
+               ! spaceship(7,1:mg2p_forc%npart(np))=forc_us_part(np)%val
+               ! spaceship(8,1:mg2p_forc%npart(np))=forc_vs_part(np)%val
+
+               ! target_server=p_iam_glb/5+p_np_glb
+               ! call MPI_SEND(spaceship,36,MPI_REAL8,target_server,0,MPI_COMM_WORLD,ierr)
+               ! call MPI_RECV(forc_prc_part(np)%val,4,MPI_REAL8,target_server,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE,ierr)
+               ! ! print*, "OSCARRRHHHH,p_iam_glb",p_iam_glb,"target_server",target_server,"forc_prc_part(np)%val",forc_prc_part(np)%val
+
+#endif
             ENDDO
          ENDIF
 
+
          ! Conservation of short- and long- waves radiation in the grid of forcing
-         CALL mg2p_forc%normalize (forc_xy_solarin, forc_swrad_part)
-         CALL mg2p_forc%normalize (forc_xy_frl,     forc_frl_part  )
+         !CALL mg2p_forc%normalize (forc_xy_solarin, forc_swrad_part)
+         !CALL mg2p_forc%normalize (forc_xy_frl,     forc_frl_part  )
    
          ! mapping parts to patches
          CALL mg2p_forc%part2pset (forc_t_part,      forc_t     )
@@ -789,6 +812,31 @@ CONTAINS
          CALL mg2p_forc%part2pset (forc_swrad_part,  forc_swrad )
          CALL mg2p_forc%part2pset (forc_us_part,     forc_us    )
          CALL mg2p_forc%part2pset (forc_vs_part,     forc_vs    )
+
+         IF (p_is_worker) THEN
+               spaceship(1,1:numpatch) = forc_topo
+               spaceship(2,1:numpatch) = forc_t
+               spaceship(3,1:numpatch) = forc_pbot
+               spaceship(4,1:numpatch) = forc_q
+               spaceship(5,1:numpatch) = forc_frl
+               spaceship(6,1:numpatch) = forc_swrad
+               spaceship(7,1:numpatch) = forc_us
+               spaceship(8,1:numpatch) = forc_vs
+               spaceship(9,1:numpatch) = INT(calday)
+               spaceship(10,1:numpatch) = patchlatr
+               spaceship(11,1:numpatch) = patchlonr
+               target_server = p_iam_glb/5+p_np_glb
+               call MPI_SEND(spaceship,12*numpatch,MPI_REAL8,target_server,0,MPI_COMM_WORLD,ierr)
+               call MPI_RECV(forc_prc,numpatch,MPI_REAL8,target_server,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE,ierr)
+               forc_prl = forc_prc/3600*2/3._r8
+               forc_prc = forc_prc/3600*1/3._r8
+         ENDIF
+         
+         ! forc_prl -> part
+
+         ! CALL mg2p_forc%normalize (forc_xy_solarin, forc_swrad_part)
+
+         ! CALL mg2p_forc%part2pset (forc_prc_part,    forc_prc   )
 
          ! divide fractions of downscaled shortwave radiation 
          IF (p_is_worker) THEN
@@ -882,7 +930,7 @@ CONTAINS
 
       mtstamp = idate
 
-      DO ivar = 1, NVAR
+      DO ivar = 1, NVAR  
 
          IF (trim(vname(ivar)) == 'NULL') CYCLE     ! no data, CYCLE
 

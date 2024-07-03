@@ -223,7 +223,7 @@ CONTAINS
       ! save
       forc_t_c    = tbot_c
       forc_th_c   = thbot_c
-      forc_q_c    = qbot_c
+      forc_q_c    = qbot_g  ! for chenss test 
       forc_pbot_c = pbot_c
       forc_rho_c  = rhos_c
 

@@ -1,0 +1,38 @@
+# =======================================================
+# mpif90 - ifort 
+# 
+
+ FF = /stu01/zhanghan/libs4ever/INTEL/oneapi/mpi/2021.12/bin/mpiifx
+
+ NETCDF_LIB = /home/zhanghan/stu/libs4ever/netcdf/c-4.9.2_fortran-4.6.1/lib
+ NETCDF_INC = /home/zhanghan/stu/libs4ever/netcdf/c-4.9.2_fortran-4.6.1/include
+
+ MATH_LIB = /tera07/wein/software/installed/lib/
+
+ MOD_CMD = -module 
+
+ FOPTS = -O2 -traceback -r8 -free -check bounds
+
+ LDFLAGS = -L${NETCDF_LIB} -lnetcdf -lnetcdff -llapack -lblas
+
+#============================================================
+# CaMa-Flood Mkinclude (for Linux, Intel fortran)
+
+RM = /bin/rm -f
+CP = /bin/cp
+#----
+# Pre-Prosessing options
+# DMPI=-DUseMPI: activate when MPI parallelization is used
+# DCDF=-DUseCDF: activate when using netCDF, comment out when not needed
+# DATM=-DNoAtom: activate when OMP ATOMIC calculation should be avoided (bit identical simulation)
+#----
+#DMPI=-DUseMPI
+DCDF=-DUseCDF
+#DATM=-DNoAtom
+CFLAGS=$(DMPI) $(DCDF) $(DATM) 
+#----
+# FCMP: main program (src/), FC: pre/post process (map/ etc/)
+FCMP = ifort
+FC = ifort
+LFLAGS =
+FFLAGS = -O3 -warn all -fpp -free -assume byterecl -heap-arrays -nogen-interface -lpthread -static-intel

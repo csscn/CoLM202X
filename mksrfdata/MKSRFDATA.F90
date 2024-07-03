@@ -94,11 +94,31 @@ PROGRAM MKSRFDATA
 
    integer   :: lc_year
    integer*8 :: start_time, end_time, c_per_sec, time_used
-
+   
+   integer target_server, ierr, ivar, NVAR
+   real(r8) :: domain(8)
+   character(len=250*17) :: fprefix_str
+   character(len=250) :: fprefix(17), state
 
 #ifdef USEMPI
-   CALL spmd_init ()
+#ifdef USESplitAI
+      integer :: num_procs, my_rank, color, new_comm
+      call MPI_Init(ierr) ! Initialize MPI
+      call MPI_Comm_size(MPI_COMM_WORLD, num_procs, ierr) ! Get the total number of processes
+      call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, ierr) ! Get the rank of the current process
+      color = 1 ! The pyroot process will be in its own communicator
+      print*, 'before split I am process', my_rank, 'of', num_procs
+      call MPI_Comm_split(MPI_COMM_WORLD, color, my_rank, new_comm, ierr) ! Split the communicator
+      print*, 'after split I am process', my_rank, 'of', num_procs
+      call MPI_Comm_size(new_comm, num_procs, ierr) ! Get the total number of processes
+      call MPI_Comm_rank(new_comm, my_rank, ierr) ! Get the rank of the current process
 #endif
+      CALL spmd_init (new_comm)
+#endif
+
+!#ifdef USEMPI
+!  CALL spmd_init ()
+!#endif
 
    IF (p_is_master) THEN
       CALL system_clock (start_time)
@@ -362,28 +382,57 @@ PROGRAM MKSRFDATA
 
    !TODO: for lulcc, need to run for each year and SAVE to different subdirs
 
-   CALL Aggregation_PercentagesPFT  (gpatch , dir_rawdata, dir_landdata, lc_year)
+   !CALL Aggregation_PercentagesPFT  (gpatch , dir_rawdata, dir_landdata, lc_year)
 
-   CALL Aggregation_LakeDepth       (gpatch , dir_rawdata, dir_landdata, lc_year)
+   !CALL Aggregation_LakeDepth       (gpatch , dir_rawdata, dir_landdata, lc_year)
 
-   CALL Aggregation_SoilParameters  (gsoil,   dir_rawdata, dir_landdata, lc_year)
+   !CALL Aggregation_SoilParameters  (gsoil,   dir_rawdata, dir_landdata, lc_year)
 
-   CALL Aggregation_SoilBrightness  (gpatch , dir_rawdata, dir_landdata, lc_year)
+   !CALL Aggregation_SoilBrightness  (gpatch , dir_rawdata, dir_landdata, lc_year)
 
-   IF (DEF_USE_BEDROCK) THEN
-      CALL Aggregation_DBedrock     (gpatch , dir_rawdata, dir_landdata)
+   !IF (DEF_USE_BEDROCK) THEN
+   !   CALL Aggregation_DBedrock     (gpatch , dir_rawdata, dir_landdata)
+   !ENDIF
+
+   !CALL Aggregation_LAI             (gridlai, dir_rawdata, dir_landdata, lc_year)
+
+   !CALL Aggregation_ForestHeight    (gpatch , dir_rawdata, dir_landdata, lc_year)
+
+   !CALL Aggregation_Topography      (gtopo  , dir_rawdata, dir_landdata, lc_year)
+
+   !IF (DEF_USE_Forcing_Downscaling) THEN   
+   !   CALL Aggregation_TopographyFactors (grid_topo_factor, dir_rawdata, dir_landdata, lc_year)
+   !ENDIF
+
+   ! train precipitation downscaling model
+
+   IF (DEF_USE_Forcing_Downscaling) THEN
+      domain(1) = DEF_domain%edges
+      domain(2) = DEF_domain%edgen
+      domain(3) = DEF_domain%edgew
+      domain(4) = DEF_domain%edgee
+      domain(5) = DEF_simulation_time%start_year
+      domain(6) = DEF_simulation_time%start_month
+      domain(7) = DEF_simulation_time%end_year
+      domain(8) = DEF_simulation_time%end_month
+      ! forcing data routine
+      NVAR = DEF_forcing%NVAR
+      DO ivar = 1, NVAR
+         fprefix (ivar) = trim(DEF_dir_forcing)//trim(DEF_forcing%fprefix(ivar))  ! file prefix
+      END DO
+      DO ivar = 1, NVAR
+         fprefix (ivar+NVAR) = trim(DEF_forcing%vname(ivar))    ! variable name(t2m,q,sp,prec,u10,v10,sw,lw)
+      END DO
+      fprefix(2*NVAR+1) = trim(DEF_forcing%groupby)
+      DO ivar = 1, 2*NVAR+1
+         fprefix_str((ivar-1)*250+1:ivar*250) = fprefix(ivar)
+      END DO
+      target_server = p_iam_glb/5+p_np_glb
+      CALL MPI_SEND(domain,8,MPI_REAL8,target_server,0,MPI_COMM_WORLD,ierr)
+      CALL MPI_SEND(fprefix_str,250*(2*NVAR+1),MPI_CHARACTER,target_server,1,MPI_COMM_WORLD,ierr)
+      CALL MPI_RECV(state,250,MPI_CHARACTER,target_server,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE,ierr)
+      write(*,*) state
    ENDIF
-
-   CALL Aggregation_LAI             (gridlai, dir_rawdata, dir_landdata, lc_year)
-
-   CALL Aggregation_ForestHeight    (gpatch , dir_rawdata, dir_landdata, lc_year)
-
-   CALL Aggregation_Topography      (gtopo  , dir_rawdata, dir_landdata, lc_year)
-
-   IF (DEF_USE_Forcing_Downscaling) THEN   
-      CALL Aggregation_TopographyFactors (grid_topo_factor, dir_rawdata, dir_landdata, lc_year)
-   ENDIF
-   
 #ifdef URBAN_MODEL
    CALL Aggregation_urban (dir_rawdata, dir_landdata, lc_year, &
                            grid_urban_5km, grid_urban_500m)

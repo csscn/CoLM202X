@@ -5,6 +5,9 @@
 #undef UNSTRUCTURED
 #undef SinglePoint
 
+
+#define USESplitAI
+
 ! 2. Land subgrid type classification:
 !    Select one of the following options.
 #undef LULC_USGS
